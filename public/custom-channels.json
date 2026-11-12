@@ -1,14 +1,14 @@
 [
   {
-    "name": "Turis Tv ",
-    "url": "https://tvsms.club/tv.php?kanal=zeynotv&file=.m3u8?start=LIVE&end=END"
+    "name": "BeinSport",
+    "url": "https://cdn.codenet.work/streamgo/stremgo123/4864.m3u8"
   },
   {
-    "name": "Turis Tv 1",
-    "url": "https://yayin.santraltr.com/hls/arabeskyeni.m3u8"
+    "name": "BeinSport 1",
+    "url": "https://cdn.codenet.work/streamgo/stremgo123/4865.m3u8""
   },
   {
-    "name": "Turis Tv 2",
-    "url": "https://tvsms.club/tvz.php?kanal=toppop&file=.m3u8?start=LIVE&end=END"
+    "name": "BeinSport 2",
+    "url": "https://cdn.codenet.work/streamgo/stremgo123/4866.m3u8"
   }
 ]
