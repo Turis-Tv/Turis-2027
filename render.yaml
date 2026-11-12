@@ -1,0 +1,21 @@
+databases:
+  - name: turis-tv-db
+    plan: free
+
+services:
+  - type: web
+    name: turis-tv
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build && npx drizzle-kit push
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: turis-tv-db
+          property: connectionString
+      - key: LINK_PIN_HASH
+        value: 954446921d7cda37f7f285ffbd7df61b5215886a1ff2b7abb55c4c29f151011f
+      - key: SESSION_SECRET
+        generateValue: true
