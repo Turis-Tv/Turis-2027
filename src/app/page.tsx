@@ -21,6 +21,8 @@ import {
   X,
 } from "lucide-react";
 import PinPad from "@/components/PinPad";
+import AppMode from "@/components/AppMode";
+import HttpStreamPlayer from "@/components/HttpStreamPlayer";
 import { ALL_CHANNEL_PATHS } from "@/lib/channels";
 
 type Channel = {
@@ -70,6 +72,7 @@ export default function HomePage() {
   const [channels, setChannels] = useState<Channel[]>(INITIAL_CHANNELS);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
+  const [searchOpen, setSearchOpen] = useState(false);
   const [selected, setSelected] = useState<Channel | null>(INITIAL_CHANNELS[0] ?? null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
@@ -78,6 +81,7 @@ export default function HomePage() {
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [playerLoading, setPlayerLoading] = useState(false);
   const [playerAttempt, setPlayerAttempt] = useState(0);
+  const [customSource, setCustomSource] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [appOrigin, setAppOrigin] = useState("");
   const [unlocked, setUnlocked] = useState(false);
@@ -304,7 +308,7 @@ export default function HomePage() {
     setPlayerError(null);
     setPlayerLoading(true);
 
-    const baseSrc = `/api/hls?p=${encodeURIComponent(selected.path)}`;
+    const baseSrc = customSource || `/api/hls?p=${encodeURIComponent(selected.path)}`;
     let destroyed = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let networkRetries = 0;
@@ -405,7 +409,7 @@ export default function HomePage() {
     }
 
     return cleanup;
-  }, [selected, playerAttempt]);
+  }, [selected, playerAttempt, customSource]);
 
   // ---------- Yenileme ----------
   const refreshOne = async (ch: Channel) => {
@@ -469,59 +473,71 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
-      <header className="border-b border-zinc-800 bg-zinc-900/60">
-        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-rose-700 text-white">
-              <Tv className="h-6 w-6" />
+      <header className="sticky top-0 z-40 border-b border-zinc-800 bg-zinc-900/95 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:px-6 sm:py-4">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-rose-700 text-white">
+              <Tv className="h-5 w-5" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
-                Turis Tv
-              </h1>
-              <p className="text-sm text-zinc-400">
-                {channels.length} kanal · PIN olmadan izle ·{" "}
-                {unlocked ? "bağlantılar açık" : "bağlantılar PIN ile kilitli"}
-              </p>
-            </div>
+            <h1 className="truncate text-lg font-bold tracking-tight sm:text-2xl">
+              Turis Tv
+            </h1>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+            <AppMode />
             <button
-              onClick={openMobileInfo}
-              className="inline-flex items-center gap-2 rounded-xl border border-emerald-700 bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
+              onClick={() => {
+                setSearchOpen((open) => !open);
+                if (searchOpen) setSearch("");
+              }}
+              aria-expanded={searchOpen}
+              aria-controls="channel-search-panel"
+              title="Kanal ara"
+              className={`inline-flex items-center rounded-xl border px-2.5 py-2.5 transition ${
+                searchOpen
+                  ? "border-red-600 bg-red-600/15 text-red-300"
+                  : "border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
+              }`}
             >
-              <Smartphone className="h-4 w-4" />
-              Mobil
+              <Search className="h-4 w-4" />
             </button>
             <button
               onClick={refreshAll}
               disabled={refreshAllRunning || loading}
-              className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-zinc-700 disabled:opacity-50"
+              title="Tüm bağlantıları yenile"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-800 px-2.5 py-2.5 text-xs font-medium text-zinc-100 transition hover:bg-zinc-700 disabled:opacity-50 sm:px-4 sm:text-sm"
             >
               {refreshAllRunning ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
-              {refreshAllRunning
-                ? `Yenileniyor ${refreshProgress.done}/${refreshProgress.total}`
-                : "Tüm bağlantıları yenile"}
+              <span className="hidden sm:inline">
+                {refreshAllRunning
+                  ? `Yenileniyor ${refreshProgress.done}/${refreshProgress.total}`
+                  : "Tüm bağlantıları yenile"}
+              </span>
+              <span className="sm:hidden">
+                {refreshAllRunning ? `${refreshProgress.done}/${refreshProgress.total}` : "Yenile"}
+              </span>
             </button>
             {unlocked ? (
               <button
                 onClick={lockEverything}
-                className="inline-flex items-center gap-2 rounded-xl bg-zinc-100 px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-white"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-100 px-2.5 py-2.5 text-xs font-semibold text-zinc-900 transition hover:bg-white sm:px-4 sm:text-sm"
               >
                 <Unlock className="h-4 w-4" />
-                Kilitle
+                <span className="hidden sm:inline">Kilitle</span>
               </button>
             ) : (
               <button
                 onClick={() => setPinOpen(true)}
-                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500"
+                title="Bağlantıları göster (PIN)"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-2.5 py-2.5 text-xs font-semibold text-white transition hover:bg-red-500 sm:px-4 sm:text-sm"
               >
                 <Lock className="h-4 w-4" />
-                Bağlantıları göster (PIN)
+                <span className="hidden sm:inline">Bağlantıları göster (PIN)</span>
+                <span className="sm:hidden">PIN</span>
               </button>
             )}
           </div>
@@ -542,12 +558,37 @@ export default function HomePage() {
         )}
       </header>
 
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        {/* Mobiel: kanalen altijd direct boven de speler bereikbaar */}
-        <div className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 lg:hidden">
+      {searchOpen && (
+        <div id="channel-search-panel" className="sticky top-[65px] z-30 border-b border-zinc-800 bg-zinc-900/95 px-3 py-3 backdrop-blur sm:top-[73px] sm:px-6">
+          <div className="relative mx-auto max-w-7xl">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+            <input
+              autoFocus
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Kanal ara..."
+              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 py-2.5 pl-9 pr-10 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none"
+            />
+            <button
+              onClick={() => {
+                setSearch("");
+                setSearchOpen(false);
+              }}
+              aria-label="Aramayı kapat"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6">
+        {/* Compacte mobiele kanalenkeuze direct boven de speler */}
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 lg:hidden">
           <label
             htmlFor="mobile-channel-select"
-            className="mb-2 block text-sm font-semibold text-white"
+            className="shrink-0 text-xs font-semibold text-white"
           >
             Kanal seç
           </label>
@@ -559,7 +600,7 @@ export default function HomePage() {
               if (next) setSelected(next);
             }}
             disabled={loading || channels.length === 0}
-            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-3.5 text-base font-medium text-white focus:border-red-600 focus:outline-none disabled:opacity-50"
+            className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm font-medium text-white focus:border-red-600 focus:outline-none disabled:opacity-50"
           >
             {loading ? (
               <option value="">Kanallar yükleniyor…</option>
@@ -573,12 +614,17 @@ export default function HomePage() {
               ))
             )}
           </select>
-          <p className="mt-2 text-xs text-zinc-400">
-            {channels.length} kanal · oynatmak için listeden seçim yapın
-          </p>
         </div>
 
-        <section className="grid gap-6 lg:grid-cols-3">
+        <HttpStreamPlayer
+          onPlay={(url) => {
+            setCustomSource(url);
+            setPlayerError(null);
+            showToast("HTTP M3U8 wordt afgespeeld");
+          }}
+        />
+
+        <section className="grid gap-4 lg:grid-cols-3 lg:gap-6">
           <div className="lg:col-span-2">
             <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-black shadow-2xl">
               <div className="flex items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-900 px-4 py-3">
@@ -637,15 +683,7 @@ export default function HomePage() {
                 {filtered.length} / {channels.length}
               </span>
             </div>
-            <div className="relative mt-3">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Kanal ara..."
-                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none"
-              />
-            </div>
+
             <div className="mt-3 max-h-[400px] space-y-1.5 overflow-y-auto pr-1 sm:max-h-[480px] lg:max-h-[560px]">
               {loading ? (
                 <div className="grid place-items-center py-10">
@@ -661,7 +699,10 @@ export default function HomePage() {
                   return (
                     <button
                       key={c.path}
-                      onClick={() => setSelected(c)}
+                      onClick={() => {
+                        setCustomSource(null);
+                        setSelected(c);
+                      }}
                       className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${
                         active
                           ? "border-red-600/60 bg-red-600/10 text-white"
