@@ -193,7 +193,13 @@ export default function HomePage() {
   const handleUnlockSuccess = () => {
     setPinOpen(false);
     setUnlocked(true);
-    if (pendingRef.current) setLinksOpen(true);
+    // PIN juist: de verborgen linksectie mag nu zichtbaar worden en opent meteen.
+    setLinksOpen(true);
+    setTimeout(() => {
+      document
+        .getElementById("alle-m3u8-links")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 250);
     showToast("Kilit açıldı — tüm bağlantılar görünür");
     loadChannels();
     const action = pendingRef.current;
@@ -692,6 +698,7 @@ export default function HomePage() {
           </div>
         </section>
 
+        {unlocked && (
         <button
           onClick={toggleLinksSection}
           aria-expanded={linksOpen}
@@ -730,8 +737,9 @@ export default function HomePage() {
             )}
           </span>
         </button>
+        )}
 
-        {linksOpen && (
+        {linksOpen && unlocked && (
           <div id="alle-m3u8-links" className="scroll-mt-4">
             <section className="mt-6 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900">
               <div className="border-b border-zinc-800 px-5 py-4">

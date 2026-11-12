@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Download, Smartphone, X } from "lucide-react";
 
 type InstallPromptEvent = Event & {
@@ -106,9 +107,15 @@ export default function AppMode() {
         <span className="hidden sm:inline">{installed ? "Yüklü" : "Yükle"}</span>
       </button>
 
-      {ready && helpOpen && (
-        <div className="fixed inset-0 z-[80] grid place-items-center bg-black/85 px-4 backdrop-blur-sm">
-          <div className="max-h-[88vh] w-full max-w-md overflow-y-auto rounded-3xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl sm:p-6">
+      {ready && helpOpen && createPortal(
+        <div
+          onClick={() => setHelpOpen(false)}
+          className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto overscroll-contain bg-black/85 p-4 backdrop-blur-sm"
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className="my-auto max-h-[85vh] w-full max-w-md overflow-y-auto rounded-3xl border border-zinc-700 bg-zinc-900 p-5 shadow-2xl sm:p-6"
+          >
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-emerald-600/15 text-emerald-400">
@@ -156,16 +163,29 @@ export default function AppMode() {
               Bunu bir düğme ile değiştirmek teknik olarak mümkün değildir.
             </p>
 
-            {promptEvent && (
+            {promptEvent ? (
               <button
                 onClick={install}
                 className="mt-4 w-full rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-600"
               >
                 Şimdi yükle
               </button>
+            ) : (
+              <p className="mt-4 text-xs leading-relaxed text-zinc-500">
+                Tarayıcınız otomatik yükleme penceresi sunmuyorsa yukarıdaki menü
+                adımlarını kullanın. Uygulama zaten yüklüyse ana ekrandaki simgeyi açın.
+              </p>
             )}
+
+            <button
+              onClick={() => setHelpOpen(false)}
+              className="mt-3 w-full rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-zinc-700"
+            >
+              Kapat
+            </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );
