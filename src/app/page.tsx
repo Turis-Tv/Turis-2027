@@ -16,7 +16,6 @@ import {
   RefreshCw,
   Search,
   Smartphone,
-  Tv,
   Unlock,
   X,
 } from "lucide-react";
@@ -413,7 +412,7 @@ export default function HomePage() {
   }, [selected, playerAttempt, customSource]);
 
   // ---------- Yenileme ----------
-  const refreshOne = async (ch: Channel) => {
+  const refreshOne = async (ch: Channel, silent = false) => {
     setRefreshing((r) => ({ ...r, [ch.path]: true }));
     try {
       const res = await fetch("/api/refresh", {
@@ -442,27 +441,40 @@ export default function HomePage() {
           prev ? { ...prev, m3u8Url: freshUrl, kodk: data.kodk, kos: data.kos } : prev
         );
       }
-      showToast(`${ch.title} yenilendi`);
+      if (!silent) showToast(`${ch.title} yenilendi`);
     } catch {
-      showToast(`${ch.title}: yenileme başarısız`);
+      if (!silent) showToast(`${ch.title}: yenileme başarısız`);
     } finally {
       setRefreshing((r) => ({ ...r, [ch.path]: false }));
     }
   };
 
-  const refreshAll = async () => {
+  const refreshAll = async (silent = false) => {
     if (refreshAllRunning) return;
     setRefreshAllRunning(true);
     setRefreshProgress({ done: 0, total: channels.length });
     let done = 0;
     for (const ch of channels) {
-      await refreshOne(ch);
+      await refreshOne(ch, silent);
       done += 1;
       setRefreshProgress({ done, total: channels.length });
     }
     setRefreshAllRunning(false);
-    showToast("Tüm kanallar yenilendi");
+    showToast(silent ? "Kanallar arka planda yenilendi" : "Tüm kanallar yenilendi");
   };
+
+  // Her açılışta kanalları otomatik yenile (sessizce, arka planda).
+  const autoRefreshRef = useRef(false);
+  useEffect(() => {
+    if (autoRefreshRef.current) return;
+    autoRefreshRef.current = true;
+    const timer = setTimeout(() => {
+      void refreshAll(true);
+    }, 1500);
+    return () => clearTimeout(timer);
+    // Yalnızca ilk sayfa açılışında bir kez çalışır.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("tr-TR");
@@ -475,16 +487,9 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
       <header className="sticky top-0 z-40 border-b border-zinc-800 bg-zinc-900/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-between gap-2 px-3 py-3 sm:px-6 sm:py-4">
-          <div className="flex min-w-0 items-center gap-2.5">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-rose-700 text-white">
-              <Tv className="h-5 w-5" />
-            </div>
-            <h1 className="truncate text-lg font-bold tracking-tight sm:text-2xl">
-              Turis Tv
-            </h1>
-          </div>
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-2 py-2.5 sm:px-6 sm:py-3">
+          <h1 className="sr-only">Turis Tv</h1>
+          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
             <AppMode />
             <button
               onClick={() => {
@@ -503,7 +508,7 @@ export default function HomePage() {
               <Search className="h-4 w-4" />
             </button>
             <button
-              onClick={refreshAll}
+              onClick={() => void refreshAll(false)}
               disabled={refreshAllRunning || loading}
               title="Tüm bağlantıları yenile"
               className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-800 px-2.5 py-2.5 text-xs font-medium text-zinc-100 transition hover:bg-zinc-700 disabled:opacity-50 sm:px-4 sm:text-sm"
@@ -586,8 +591,8 @@ export default function HomePage() {
 
       <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6">
         <section className="grid gap-4 lg:grid-cols-3 lg:gap-6">
-          <div className="lg:col-span-2">
-            <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-black shadow-2xl">
+          <div className="sticky top-[54px] z-30 self-start lg:col-span-2 lg:static">
+            <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-black shadow-2xl shadow-black/70">
               <div className="relative aspect-video bg-black">
                 <video
                   ref={videoRef}
@@ -628,16 +633,7 @@ export default function HomePage() {
             </div>
             <div className="mt-3">
               <CustomChannelSelect
-                channels={channels}
-                selectedPath={customSource ? undefined : selected?.path}
-                onBuiltInSelect={(path) => {
-                  const channel = channels.find((item) => item.path === path);
-                  if (channel) {
-                    setCustomSource(null);
-                    setCustomTitle(null);
-                    setSelected(channel);
-                  }
-                }}
+                selectedName={customTitle}
                 onCustomSelect={(url, name) => {
                   setCustomTitle(name);
                   setCustomSource(`/api/http-playlist?url=${encodeURIComponent(url)}`);
