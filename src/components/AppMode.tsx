@@ -18,9 +18,13 @@ export default function AppMode() {
   const [helpOpen, setHelpOpen] = useState(false);
   const [installed, setInstalled] = useState(false);
   const [ready, setReady] = useState(false);
+  const [appOn, setAppOn] = useState(true);
 
   useEffect(() => {
     setInstalled(window.matchMedia("(display-mode: standalone)").matches);
+    // App-modus staat standaard AAN en blijft bewaard op dit apparaat.
+    const saved = localStorage.getItem("turis-app-mode");
+    setAppOn(saved === null ? true : saved === "1");
     setReady(true);
 
     if ("serviceWorker" in navigator) {
@@ -60,8 +64,39 @@ export default function AppMode() {
     }
   };
 
+  const toggleApp = () => {
+    const next = !appOn;
+    setAppOn(next);
+    localStorage.setItem("turis-app-mode", next ? "1" : "0");
+    if (next) setHelpOpen(true);
+  };
+
   return (
     <>
+      <button
+        onClick={toggleApp}
+        aria-pressed={appOn}
+        title="Uygulama modu (varsayılan açık)"
+        className={`inline-flex items-center gap-1.5 rounded-xl border px-2 py-2 text-[11px] font-semibold transition sm:px-2.5 ${
+          appOn
+            ? "border-emerald-700/70 bg-emerald-950/50 text-emerald-300"
+            : "border-zinc-700 bg-zinc-800 text-zinc-400"
+        }`}
+      >
+        <span className="hidden sm:inline">App</span>
+        <span
+          className={`relative h-4 w-7 rounded-full transition ${
+            appOn ? "bg-emerald-500" : "bg-zinc-600"
+          }`}
+        >
+          <span
+            className={`absolute top-0.5 h-3 w-3 rounded-full bg-white transition-all ${
+              appOn ? "left-3.5" : "left-0.5"
+            }`}
+          />
+        </span>
+      </button>
+
       <button
         onClick={install}
         title={installed ? "Uygulama yüklü" : "Ana ekrana yükle"}

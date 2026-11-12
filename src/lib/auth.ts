@@ -24,8 +24,15 @@ function safeEqual(a: string, b: string): boolean {
   }
 }
 
+// Zelfde hash als in render.yaml (PIN: 6636). Alleen een sha256-hash, nooit de
+// PIN zelf. Zo blijft de PIN werken ook als de env-var op Render ontbreekt.
+const DEFAULT_PIN_HASH =
+  "954446921d7cda37f7f285ffbd7df61b5215886a1ff2b7abb55c4c29f151011f";
+
 export function pinConfigured(): boolean {
-  return Boolean(process.env.LINK_PIN_HASH || process.env.LINK_PIN);
+  return Boolean(
+    process.env.LINK_PIN_HASH || process.env.LINK_PIN || DEFAULT_PIN_HASH
+  );
 }
 
 /**
@@ -35,7 +42,9 @@ export function pinConfigured(): boolean {
 export function pinMatches(pin: string): boolean {
   const plain = process.env.LINK_PIN;
   if (plain) return safeEqual(sha256Hex(pin), sha256Hex(plain));
-  const hash = (process.env.LINK_PIN_HASH || "").trim().toLowerCase();
+  const hash = (process.env.LINK_PIN_HASH || DEFAULT_PIN_HASH)
+    .trim()
+    .toLowerCase();
   if (!hash) return false;
   return safeEqual(sha256Hex(pin), hash);
 }
