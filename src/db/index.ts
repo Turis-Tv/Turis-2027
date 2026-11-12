@@ -1,11 +1,11 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 
-// Zonder expliciete database gebruiken we een placeholder. De API's hebben een
-// ingebouwde fallback van 37 kanalen, dus build/start mag hierdoor niet stoppen.
-const databaseUrl =
-  process.env.DATABASE_URL ||
-  "postgresql://postgres:postgres@127.0.0.1:5432/app_db";
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL is required");
+}
 
 const globalForDb = globalThis as typeof globalThis & {
   __arenaNextJsPostgresqlPool?: Pool;

@@ -20,8 +20,7 @@
     "pg": "8.20.0",
     "qrcode": "^1.5.4",
     "react": "19.2.6",
-    "react-dom": "19.2.6",
-    "workbox-build": "^7.4.1"
+    "react-dom": "19.2.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.17",

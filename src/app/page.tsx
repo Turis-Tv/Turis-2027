@@ -16,12 +16,11 @@ import {
   RefreshCw,
   Search,
   Smartphone,
+  Tv,
   Unlock,
   X,
 } from "lucide-react";
 import PinPad from "@/components/PinPad";
-import AppMode from "@/components/AppMode";
-import CustomChannelSelect from "@/components/CustomChannelSelect";
 import { ALL_CHANNEL_PATHS } from "@/lib/channels";
 
 type Channel = {
@@ -71,7 +70,6 @@ export default function HomePage() {
   const [channels, setChannels] = useState<Channel[]>(INITIAL_CHANNELS);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
-  const [searchOpen, setSearchOpen] = useState(false);
   const [selected, setSelected] = useState<Channel | null>(INITIAL_CHANNELS[0] ?? null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState<Record<string, boolean>>({});
@@ -80,8 +78,6 @@ export default function HomePage() {
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [playerLoading, setPlayerLoading] = useState(false);
   const [playerAttempt, setPlayerAttempt] = useState(0);
-  const [customSource, setCustomSource] = useState<string | null>(null);
-  const [customTitle, setCustomTitle] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [appOrigin, setAppOrigin] = useState("");
   const [unlocked, setUnlocked] = useState(false);
@@ -308,7 +304,7 @@ export default function HomePage() {
     setPlayerError(null);
     setPlayerLoading(true);
 
-    const baseSrc = customSource || `/api/hls?p=${encodeURIComponent(selected.path)}`;
+    const baseSrc = `/api/hls?p=${encodeURIComponent(selected.path)}`;
     let destroyed = false;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
     let networkRetries = 0;
@@ -409,10 +405,10 @@ export default function HomePage() {
     }
 
     return cleanup;
-  }, [selected, playerAttempt, customSource]);
+  }, [selected, playerAttempt]);
 
   // ---------- Yenileme ----------
-  const refreshOne = async (ch: Channel, silent = false) => {
+  const refreshOne = async (ch: Channel) => {
     setRefreshing((r) => ({ ...r, [ch.path]: true }));
     try {
       const res = await fetch("/api/refresh", {
@@ -441,40 +437,27 @@ export default function HomePage() {
           prev ? { ...prev, m3u8Url: freshUrl, kodk: data.kodk, kos: data.kos } : prev
         );
       }
-      if (!silent) showToast(`${ch.title} yenilendi`);
+      showToast(`${ch.title} yenilendi`);
     } catch {
-      if (!silent) showToast(`${ch.title}: yenileme başarısız`);
+      showToast(`${ch.title}: yenileme başarısız`);
     } finally {
       setRefreshing((r) => ({ ...r, [ch.path]: false }));
     }
   };
 
-  const refreshAll = async (silent = false) => {
+  const refreshAll = async () => {
     if (refreshAllRunning) return;
     setRefreshAllRunning(true);
     setRefreshProgress({ done: 0, total: channels.length });
     let done = 0;
     for (const ch of channels) {
-      await refreshOne(ch, silent);
+      await refreshOne(ch);
       done += 1;
       setRefreshProgress({ done, total: channels.length });
     }
     setRefreshAllRunning(false);
-    showToast(silent ? "Kanallar arka planda yenilendi" : "Tüm kanallar yenilendi");
+    showToast("Tüm kanallar yenilendi");
   };
-
-  // Her açılışta kanalları otomatik yenile (sessizce, arka planda).
-  const autoRefreshRef = useRef(false);
-  useEffect(() => {
-    if (autoRefreshRef.current) return;
-    autoRefreshRef.current = true;
-    const timer = setTimeout(() => {
-      void refreshAll(true);
-    }, 1500);
-    return () => clearTimeout(timer);
-    // Yalnızca ilk sayfa açılışında bir kez çalışır.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("tr-TR");
@@ -486,64 +469,59 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100">
-      <header className="sticky top-0 z-40 border-b border-zinc-800 bg-zinc-900/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center justify-center gap-2 px-2 py-2.5 sm:px-6 sm:py-3">
-          <h1 className="sr-only">Turis Tv</h1>
-          <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2">
-            <AppMode />
+      <header className="border-b border-zinc-800 bg-zinc-900/60">
+        <div className="mx-auto flex max-w-7xl flex-col gap-4 px-4 py-6 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-red-600 to-rose-700 text-white">
+              <Tv className="h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">
+                Turis Tv
+              </h1>
+              <p className="text-sm text-zinc-400">
+                {channels.length} kanal · PIN olmadan izle ·{" "}
+                {unlocked ? "bağlantılar açık" : "bağlantılar PIN ile kilitli"}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
             <button
-              onClick={() => {
-                setSearchOpen((open) => !open);
-                if (searchOpen) setSearch("");
-              }}
-              aria-expanded={searchOpen}
-              aria-controls="channel-search-panel"
-              title="Kanal ara"
-              className={`inline-flex items-center rounded-xl border px-2.5 py-2.5 transition ${
-                searchOpen
-                  ? "border-red-600 bg-red-600/15 text-red-300"
-                  : "border-zinc-700 bg-zinc-800 text-zinc-200 hover:bg-zinc-700"
-              }`}
+              onClick={openMobileInfo}
+              className="inline-flex items-center gap-2 rounded-xl border border-emerald-700 bg-emerald-800 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
             >
-              <Search className="h-4 w-4" />
+              <Smartphone className="h-4 w-4" />
+              Mobil
             </button>
             <button
-              onClick={() => void refreshAll(false)}
+              onClick={refreshAll}
               disabled={refreshAllRunning || loading}
-              title="Tüm bağlantıları yenile"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-700 bg-zinc-800 px-2.5 py-2.5 text-xs font-medium text-zinc-100 transition hover:bg-zinc-700 disabled:opacity-50 sm:px-4 sm:text-sm"
+              className="inline-flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-100 transition hover:bg-zinc-700 disabled:opacity-50"
             >
               {refreshAllRunning ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <RefreshCw className="h-4 w-4" />
               )}
-              <span className="hidden sm:inline">
-                {refreshAllRunning
-                  ? `Yenileniyor ${refreshProgress.done}/${refreshProgress.total}`
-                  : "Tüm bağlantıları yenile"}
-              </span>
-              <span className="sm:hidden">
-                {refreshAllRunning ? `${refreshProgress.done}/${refreshProgress.total}` : "Yenile"}
-              </span>
+              {refreshAllRunning
+                ? `Yenileniyor ${refreshProgress.done}/${refreshProgress.total}`
+                : "Tüm bağlantıları yenile"}
             </button>
             {unlocked ? (
               <button
                 onClick={lockEverything}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-100 px-2.5 py-2.5 text-xs font-semibold text-zinc-900 transition hover:bg-white sm:px-4 sm:text-sm"
+                className="inline-flex items-center gap-2 rounded-xl bg-zinc-100 px-4 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-white"
               >
                 <Unlock className="h-4 w-4" />
-                <span className="hidden sm:inline">Kilitle</span>
+                Kilitle
               </button>
             ) : (
               <button
                 onClick={() => setPinOpen(true)}
-                title="Bağlantıları göster (PIN)"
-                className="inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-2.5 py-2.5 text-xs font-semibold text-white transition hover:bg-red-500 sm:px-4 sm:text-sm"
+                className="inline-flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-red-500"
               >
                 <Lock className="h-4 w-4" />
-                <span className="hidden sm:inline">Bağlantıları göster (PIN)</span>
-                <span className="sm:hidden">PIN</span>
+                Bağlantıları göster (PIN)
               </button>
             )}
           </div>
@@ -564,35 +542,58 @@ export default function HomePage() {
         )}
       </header>
 
-      {searchOpen && (
-        <div id="channel-search-panel" className="sticky top-[65px] z-30 border-b border-zinc-800 bg-zinc-900/95 px-3 py-3 backdrop-blur sm:top-[73px] sm:px-6">
-          <div className="relative mx-auto max-w-7xl">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
-            <input
-              autoFocus
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Kanal ara..."
-              className="w-full rounded-xl border border-zinc-700 bg-zinc-950 py-2.5 pl-9 pr-10 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none"
-            />
-            <button
-              onClick={() => {
-                setSearch("");
-                setSearchOpen(false);
-              }}
-              aria-label="Aramayı kapat"
-              className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-800 hover:text-white"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
+      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+        {/* Mobiel: kanalen altijd direct boven de speler bereikbaar */}
+        <div className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-4 lg:hidden">
+          <label
+            htmlFor="mobile-channel-select"
+            className="mb-2 block text-sm font-semibold text-white"
+          >
+            Kanal seç
+          </label>
+          <select
+            id="mobile-channel-select"
+            value={selected?.path ?? ""}
+            onChange={(e) => {
+              const next = channels.find((c) => c.path === e.target.value);
+              if (next) setSelected(next);
+            }}
+            disabled={loading || channels.length === 0}
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-3.5 text-base font-medium text-white focus:border-red-600 focus:outline-none disabled:opacity-50"
+          >
+            {loading ? (
+              <option value="">Kanallar yükleniyor…</option>
+            ) : channels.length === 0 ? (
+              <option value="">Kanal bulunamadı</option>
+            ) : (
+              channels.map((c, idx) => (
+                <option key={c.path} value={c.path}>
+                  {idx + 1}. {c.title}
+                </option>
+              ))
+            )}
+          </select>
+          <p className="mt-2 text-xs text-zinc-400">
+            {channels.length} kanal · oynatmak için listeden seçim yapın
+          </p>
         </div>
-      )}
 
-      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6">
-        <section className="grid gap-4 lg:grid-cols-3 lg:gap-6">
-          <div className="sticky top-[54px] z-30 self-start lg:col-span-2 lg:static">
-            <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-black shadow-2xl shadow-black/70">
+        <section className="grid gap-6 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-black shadow-2xl">
+              <div className="flex items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-900 px-4 py-3">
+                <p className="min-w-0 truncate text-sm font-semibold text-white">
+                  {selected ? selected.title : "Kanal seçilmedi"}
+                </p>
+                <div className="flex items-center gap-2">
+                  {playerLoading && (
+                    <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
+                  )}
+                  <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-300">
+                    HLS / M3U8
+                  </span>
+                </div>
+              </div>
               <div className="relative aspect-video bg-black">
                 <video
                   ref={videoRef}
@@ -625,24 +626,26 @@ export default function HomePage() {
           </div>
 
           <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-4">
-            <div className="flex items-center justify-between gap-3">
-              <h2 className="text-sm font-semibold text-white">Kanallar</h2>
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-semibold text-white">Kanallar</h2>
+                <p className="mt-0.5 text-xs text-zinc-500 lg:hidden">
+                  Tüm kanallar burada — seçmek için dokunun
+                </p>
+              </div>
               <span className="text-xs text-zinc-400">
                 {filtered.length} / {channels.length}
               </span>
             </div>
-            <div className="mt-3">
-              <CustomChannelSelect
-                selectedName={customTitle}
-                onCustomSelect={(url, name) => {
-                  setCustomTitle(name);
-                  setCustomSource(`/api/http-playlist?url=${encodeURIComponent(url)}`);
-                  setPlayerError(null);
-                  showToast(`${name} oynatılıyor`);
-                }}
+            <div className="relative mt-3">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Kanal ara..."
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 py-2.5 pl-9 pr-3 text-sm text-white placeholder:text-zinc-500 focus:border-red-600 focus:outline-none"
               />
             </div>
-
             <div className="mt-3 max-h-[400px] space-y-1.5 overflow-y-auto pr-1 sm:max-h-[480px] lg:max-h-[560px]">
               {loading ? (
                 <div className="grid place-items-center py-10">
@@ -658,11 +661,7 @@ export default function HomePage() {
                   return (
                     <button
                       key={c.path}
-                      onClick={() => {
-                        setCustomSource(null);
-                        setCustomTitle(null);
-                        setSelected(c);
-                      }}
+                      onClick={() => setSelected(c)}
                       className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${
                         active
                           ? "border-red-600/60 bg-red-600/10 text-white"
