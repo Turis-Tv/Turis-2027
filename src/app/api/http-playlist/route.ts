@@ -18,10 +18,10 @@ const PRIVATE_V4 = [
 function validatePublicHttpUrl(raw: string): URL {
   const parsed = new URL(raw);
   if (!["http:", "https:"].includes(parsed.protocol)) {
-    throw new Error("Alleen http:// en https:// worden ondersteund");
+    throw new Error("Yalnızca http:// ve https:// bağlantıları desteklenir");
   }
   if (!parsed.pathname.toLowerCase().endsWith(".m3u8")) {
-    throw new Error("De URL moet op .m3u8 eindigen");
+    throw new Error("Bağlantı .m3u8 ile bitmelidir");
   }
   const hostname = parsed.hostname.toLowerCase();
   if (
@@ -36,14 +36,14 @@ function validatePublicHttpUrl(raw: string): URL {
     PRIVATE_V4.some((pattern) => pattern.test(hostname)) ||
     (isIP(hostname) === 4 && PRIVATE_V4.some((pattern) => pattern.test(hostname)))
   ) {
-    throw new Error("Privé-netwerkadressen zijn niet toegestaan");
+    throw new Error("Özel ağ adreslerine izin verilmez");
   }
   return parsed;
 }
 
 export async function GET(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get("url");
-  if (!raw) return NextResponse.json({ error: "url ontbreekt" }, { status: 400 });
+  if (!raw) return NextResponse.json({ error: "Bağlantı eksik" }, { status: 400 });
 
   try {
     const target = validatePublicHttpUrl(raw);
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     const text = await upstream.text();
     if (!text.includes("#EXTM3U")) {
       return NextResponse.json(
-        { error: "Dit is geen geldige M3U8-playlist" },
+        { error: "Geçerli bir M3U8 oynatma listesi değil" },
         { status: 422 }
       );
     }
@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Stream kon niet geladen worden" },
+      { error: error instanceof Error ? error.message : "Yayın yüklenemedi" },
       { status: 400 }
     );
   }

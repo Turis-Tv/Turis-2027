@@ -1,5 +1,5 @@
-const CACHE = "turis-tv-shell-v1";
-const SHELL = ["/", "/manifest.webmanifest", "/icons/turis-tv-192.png", "/icons/turis-tv-512.png"];
+const CACHE = "turis-tv-shell-v3";
+const SHELL = ["/manifest.webmanifest", "/icons/turis-tv-192.png", "/icons/turis-tv-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
@@ -20,27 +20,17 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   const url = new URL(request.url);
 
-  // Streams, tokens en PIN nooit cachen: altijd verse server-antwoorden.
-  if (url.pathname.startsWith("/api/")) return;
+  // Nooit HTML, streams, tokens of PIN cachen. Zo blijft een nieuwe deployment
+  // onmiddellijk zichtbaar en kan geen oude look vastplakken.
+  if (url.pathname.startsWith("/api/") || request.mode === "navigate") return;
 
-  if (request.mode === "navigate") {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE).then((cache) => cache.put("/", copy));
-          return response;
-        })
-        .catch(() => caches.match("/"))
-    );
-    return;
-  }
+  if (url.origin !== self.location.origin) return;
 
   event.respondWith(
     caches.match(request).then((cached) =>
       cached ||
       fetch(request).then((response) => {
-        if (response.ok && url.origin === self.location.origin) {
+        if (response.ok) {
           const copy = response.clone();
           caches.open(CACHE).then((cache) => cache.put(request, copy));
         }

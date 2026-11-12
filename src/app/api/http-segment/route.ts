@@ -18,7 +18,7 @@ const PRIVATE_V4 = [
 function validatePublicSegment(raw: string): URL {
   const parsed = new URL(raw);
   if (!["http:", "https:"].includes(parsed.protocol)) {
-    throw new Error("Alleen HTTP(S)-segmenten zijn toegestaan");
+    throw new Error("Yalnızca HTTP(S) video parçalarına izin verilir");
   }
   const hostname = parsed.hostname.toLowerCase();
   if (
@@ -33,14 +33,14 @@ function validatePublicSegment(raw: string): URL {
     PRIVATE_V4.some((pattern) => pattern.test(hostname)) ||
     isIP(hostname) === 0
   ) {
-    throw new Error("Dit hostadres is niet toegestaan");
+    throw new Error("Bu sunucu adresine izin verilmez");
   }
   return parsed;
 }
 
 export async function GET(req: NextRequest) {
   const raw = req.nextUrl.searchParams.get("url");
-  if (!raw) return NextResponse.json({ error: "url ontbreekt" }, { status: 400 });
+  if (!raw) return NextResponse.json({ error: "Bağlantı eksik" }, { status: 400 });
   try {
     const target = validatePublicSegment(raw);
     const upstream = await fetch(target, {
@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Segment kon niet geladen worden" },
+      { error: error instanceof Error ? error.message : "Video parçası yüklenemedi" },
       { status: 400 }
     );
   }

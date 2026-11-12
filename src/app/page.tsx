@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import PinPad from "@/components/PinPad";
 import AppMode from "@/components/AppMode";
-import HttpStreamPlayer from "@/components/HttpStreamPlayer";
+import CustomChannelSelect from "@/components/CustomChannelSelect";
 import { ALL_CHANNEL_PATHS } from "@/lib/channels";
 
 type Channel = {
@@ -82,6 +82,7 @@ export default function HomePage() {
   const [playerLoading, setPlayerLoading] = useState(false);
   const [playerAttempt, setPlayerAttempt] = useState(0);
   const [customSource, setCustomSource] = useState<string | null>(null);
+  const [customTitle, setCustomTitle] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [appOrigin, setAppOrigin] = useState("");
   const [unlocked, setUnlocked] = useState(false);
@@ -584,62 +585,9 @@ export default function HomePage() {
       )}
 
       <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6">
-        {/* Compacte mobiele kanalenkeuze direct boven de speler */}
-        <div className="mb-3 flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-3 py-2 lg:hidden">
-          <label
-            htmlFor="mobile-channel-select"
-            className="shrink-0 text-xs font-semibold text-white"
-          >
-            Kanal seç
-          </label>
-          <select
-            id="mobile-channel-select"
-            value={selected?.path ?? ""}
-            onChange={(e) => {
-              const next = channels.find((c) => c.path === e.target.value);
-              if (next) setSelected(next);
-            }}
-            disabled={loading || channels.length === 0}
-            className="min-w-0 flex-1 rounded-lg border border-zinc-700 bg-zinc-950 px-2 py-2 text-sm font-medium text-white focus:border-red-600 focus:outline-none disabled:opacity-50"
-          >
-            {loading ? (
-              <option value="">Kanallar yükleniyor…</option>
-            ) : channels.length === 0 ? (
-              <option value="">Kanal bulunamadı</option>
-            ) : (
-              channels.map((c, idx) => (
-                <option key={c.path} value={c.path}>
-                  {idx + 1}. {c.title}
-                </option>
-              ))
-            )}
-          </select>
-        </div>
-
-        <HttpStreamPlayer
-          onPlay={(url) => {
-            setCustomSource(url);
-            setPlayerError(null);
-            showToast("HTTP M3U8 wordt afgespeeld");
-          }}
-        />
-
         <section className="grid gap-4 lg:grid-cols-3 lg:gap-6">
           <div className="lg:col-span-2">
             <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-black shadow-2xl">
-              <div className="flex items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-900 px-4 py-3">
-                <p className="min-w-0 truncate text-sm font-semibold text-white">
-                  {selected ? selected.title : "Kanal seçilmedi"}
-                </p>
-                <div className="flex items-center gap-2">
-                  {playerLoading && (
-                    <Loader2 className="h-4 w-4 animate-spin text-zinc-400" />
-                  )}
-                  <span className="rounded-full bg-zinc-800 px-2.5 py-1 text-xs font-medium text-zinc-300">
-                    HLS / M3U8
-                  </span>
-                </div>
-              </div>
               <div className="relative aspect-video bg-black">
                 <video
                   ref={videoRef}
@@ -672,16 +620,31 @@ export default function HomePage() {
           </div>
 
           <div className="rounded-3xl border border-zinc-800 bg-zinc-900 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-sm font-semibold text-white">Kanallar</h2>
-                <p className="mt-0.5 text-xs text-zinc-500 lg:hidden">
-                  Tüm kanallar burada — seçmek için dokunun
-                </p>
-              </div>
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-white">Kanallar</h2>
               <span className="text-xs text-zinc-400">
                 {filtered.length} / {channels.length}
               </span>
+            </div>
+            <div className="mt-3">
+              <CustomChannelSelect
+                channels={channels}
+                selectedPath={customSource ? undefined : selected?.path}
+                onBuiltInSelect={(path) => {
+                  const channel = channels.find((item) => item.path === path);
+                  if (channel) {
+                    setCustomSource(null);
+                    setCustomTitle(null);
+                    setSelected(channel);
+                  }
+                }}
+                onCustomSelect={(url, name) => {
+                  setCustomTitle(name);
+                  setCustomSource(`/api/http-playlist?url=${encodeURIComponent(url)}`);
+                  setPlayerError(null);
+                  showToast(`${name} oynatılıyor`);
+                }}
+              />
             </div>
 
             <div className="mt-3 max-h-[400px] space-y-1.5 overflow-y-auto pr-1 sm:max-h-[480px] lg:max-h-[560px]">
@@ -701,6 +664,7 @@ export default function HomePage() {
                       key={c.path}
                       onClick={() => {
                         setCustomSource(null);
+                        setCustomTitle(null);
                         setSelected(c);
                       }}
                       className={`flex w-full items-center gap-3 rounded-xl border px-3 py-3 text-left transition ${
