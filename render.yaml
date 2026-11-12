@@ -1,22 +1,18 @@
-databases:
-  - name: turis-tv-db
-    plan: free
-
 services:
   - type: web
     name: turis-tv
     runtime: node
     plan: free
-    buildCommand: npm install && npm run build && npx drizzle-kit push
+    buildCommand: npm install && npm run build
     startCommand: npm run start
     healthCheckPath: /api/health
     envVars:
       - key: NODE_VERSION
         value: 22.16.0
+      # Placeholder: de app valt automatisch terug op 37 ingebouwde kanalen.
+      # Zo is geen betaalde of aparte PostgreSQL-service nodig.
       - key: DATABASE_URL
-        fromDatabase:
-          name: turis-tv-db
-          property: connectionString
+        value: postgresql://postgres:postgres@127.0.0.1:5432/app_db
       - key: LINK_PIN_HASH
         value: 954446921d7cda37f7f285ffbd7df61b5215886a1ff2b7abb55c4c29f151011f
       - key: SESSION_SECRET

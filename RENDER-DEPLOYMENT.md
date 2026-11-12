@@ -1,47 +1,50 @@
-# Turis Tv — Mobiel zonder BAT via Render
+# Turis Tv — gratis op Render, zonder BAT
 
-GitHub Pages (`turis-tv.github.io/Turis-2027`) is alleen een statische website.
-Voor de speler en stream-proxy moet de Next.js-server op Render draaien.
+De app heeft geen betaalde database nodig. Zonder PostgreSQL gebruikt hij de
+37 ingebouwde kanalen automatisch.
 
-## 1. Update de repository
+## A. Automatisch via Blueprint
 
-Zorg dat het bestand `render.yaml` uit het nieuwste project in de hoofdmap van
-`Turis-Tv/Turis-2027` staat. De configuratie gebruikt `npm install` omdat er
-geen `package-lock.json` nodig is.
+1. Vervang `render.yaml` in de hoofdmap van `Turis-Tv/Turis-2027` door de
+   nieuwste versie.
+2. Open https://dashboard.render.com/ en log in met GitHub.
+3. Kies **New + → Blueprint**.
+4. Selecteer **Turis-Tv/Turis-2027**.
+5. Klik **Apply / Deploy Blueprint**.
+6. Open daarna de Render-URL van de webservice op je telefoon.
 
-## 2. Render-account koppelen
+## B. Handmatige instellingen via New Service
 
-1. Open https://dashboard.render.com/
-2. Registreer of log in met **GitHub**.
-3. Geef Render toegang tot de repository **Turis-Tv/Turis-2027**.
+Gebruik deze waarden als je het scherm **New Service** ziet:
 
-## 3. Blueprint deployment
+- **Compute:** `$0 / month — Free`
+- **Repository:** `Turis-Tv/Turis-2027`
+- **Branch:** `main`
+- **Root Directory:** leeg laten
+- **Runtime / Language:** `Node`
+- **Build Command:** `npm install && npm run build`
+- **Start Command:** `npm run start`
+- **Health Check Path:** `/api/health`
+- **Region:** dichtstbijzijnde regio, bijvoorbeeld Frankfurt
+- **Persistent disk / betaalde add-ons:** niet toevoegen
 
-1. Klik rechtsboven op **New +**.
-2. Kies **Blueprint**.
-3. Selecteer **Turis-Tv/Turis-2027**.
-4. Render vindt automatisch `render.yaml`.
-5. Controleer dat er een webservice **turis-tv** en database **turis-tv-db** staat.
-6. Klik op **Apply** / **Deploy Blueprint**.
-7. Wacht tot de build klaar is. Dit kan 5–15 minuten duren.
+Environment variables:
 
-## 4. Openen op je telefoon
+- `NODE_VERSION` = `22.16.0`
+- `DATABASE_URL` = `postgresql://postgres:postgres@127.0.0.1:5432/app_db`
+- `LINK_PIN_HASH` = `954446921d7cda37f7f285ffbd7df61b5215886a1ff2b7abb55c4c29f151011f`
+- `SESSION_SECRET` = een willekeurige lange geheime tekst
 
-1. Open in Render de webservice **turis-tv**.
-2. Bovenaan staat de publieke URL, bijvoorbeeld:
-   `https://turis-tv.onrender.com` of `https://turis-tv-xxxx.onrender.com`.
-3. Open die **Render-URL** op je telefoon.
-4. Je hebt geen BAT, Node.js, Cloudflare of een pc nodig.
+Klik daarna op **Deploy Web Service**. Kies nooit `$7 / month` als je de gratis
+versie wilt.
 
-Gebruik dus niet langer de GitHub Pages-URL voor het afspelen.
+## Mobiel openen
 
-## Controle bij problemen
+Open de publieke `onrender.com`-URL van de webservice op je telefoon. Geen BAT,
+pc, Cloudflare of GitHub Pages meer nodig.
 
-- **Build failed:** open de webservice → **Logs** en lees de laatste foutregel.
-- **Service Unavailable bij eerste bezoek:** de gratis Render-server kan slapen;
-  wacht 30–60 seconden en vernieuw.
-- **Healthcheck:** open `https://JOUW-RENDER-URL/api/health`.
-- **Kanalen blijven laden:** open `https://JOUW-RENDER-URL/api/channels`; die moet
-  een JSON-lijst met 37 kanalen teruggeven.
+De gratis service kan na inactiviteit slapen; de eerste opening kan 30–60
+seconden duren. Controle indien nodig:
 
-De PIN voor de afgeschermde links blijft dezelfde als lokaal.
+- `https://JOUW-RENDER-URL/api/health`
+- `https://JOUW-RENDER-URL/api/channels`

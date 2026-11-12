@@ -29,7 +29,7 @@
 </head>
 <body>
   <div id="file-warning" class="file-warning hidden" style="margin:16px auto 0;max-width:1248px">Dosyayı yalnızca bilgisayarda açmak yayın sunucusunu başlatmaz. Cloudflare Pages’e <strong>index.html</strong> ve <strong>_worker.js</strong> dosyalarını birlikte yükleyin.</div>
-  <div id="api-warning" class="file-warning hidden" style="margin:12px auto 0;max-width:1248px">Cloudflare worker yanıt vermiyor; <strong>statik yedek yayın rotası</strong> kullanılıyor. PIN ve indirme özelliklerinin tamamı için <strong>_worker.js</strong> dosyasını da yükleyin.</div>
+  <div id="api-warning" class="file-warning hidden" style="margin:12px auto 0;max-width:1248px">Bu sayfa statik bir sunucuda açık. 37 kanal adı gösterilir ancak <strong>akış sunucusu çalışmıyor</strong>. Oynatmak için Render’daki <strong>onrender.com</strong> adresini kullanın; GitHub Pages yalnızca statik dosyalar sunar.</div>
 
   <header class="header">
     <div class="header-inner">
@@ -138,14 +138,14 @@
   ].map((c,i)=>({id:i+1,title:c[0],path:c[1],m3u8Url:null,status:"ok"}));
 
   const $ = id => document.getElementById(id);
-  const state = {channels:FALLBACK_CHANNELS,selected:null,unlocked:false,linksOpen:false,search:"",hls:null,pending:null,pin:"",pinBusy:false,refreshing:false,retryTimer:null};
+  const state = {channels:FALLBACK_CHANNELS,selected:FALLBACK_CHANNELS[0]||null,unlocked:false,linksOpen:false,search:"",hls:null,pending:null,pin:"",pinBusy:false,refreshing:false,retryTimer:null};
   const api = path => `${location.protocol === "file:" ? "http://localhost:3000" : ""}${path}`;
   const escapeHtml = value => String(value ?? "").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const relayUrl = c => `${location.origin.startsWith("http")?location.origin:""}/api/hls?p=${encodeURIComponent(c.path)}`;
 
   function toast(message){const el=$("toast");el.textContent=message;el.classList.remove("hidden");clearTimeout(toast.timer);toast.timer=setTimeout(()=>el.classList.add("hidden"),2600)}
   async function request(path,options={}){const response=await fetch(api(path),{credentials:"include",...options});let data={};try{data=await response.json()}catch{data={error:"Sunucu yanıtı okunamadı"}}if(!response.ok)throw new Error(data.error||`HTTP ${response.status}`);return data}
-  async function loadChannels(){try{const data=await request("/api/channels");if(data.channels?.length)state.channels=data.channels;$("api-warning").classList.add("hidden")}catch{$("api-warning").classList.remove("hidden")}if(!state.selected&&state.channels.length)state.selected=state.channels[0];render();}
+  async function loadChannels(){try{const data=await request("/api/channels");if(data.channels?.length)state.channels=data.channels;state.apiHealthy=true;$("api-warning").classList.add("hidden")}catch{state.apiHealthy=false;$("api-warning").classList.remove("hidden")}if(!state.selected&&state.channels.length)state.selected=state.channels[0];render();}
   function filtered(){const q=state.search.toLocaleLowerCase("tr-TR");return state.channels.filter(c=>c.title.toLocaleLowerCase("tr-TR").includes(q))}
 
   function render(){
@@ -217,7 +217,7 @@
   function action(name){requireUnlock(async()=>{await loadChannels();if(name==="copy-plain")await copyText(directText());if(name==="copy-relay")await copyText(relayText());if(name==="copy-m3u")await copyText(m3uText());if(name==="download-m3u")download("turis-tv.m3u",m3uText(),"audio/x-mpegurl");if(name==="download-relay")download("turis-tv-kalici.m3u",m3uText(true),"audio/x-mpegurl");if(name==="download-txt")download("turis-tv-m3u8.txt",directText(),"text/plain")})}
 
   async function refreshOne(path){try{const data=await request("/api/refresh",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({path})});const c=state.channels.find(x=>x.path===path);if(c&&data.m3u8Url){c.m3u8Url=data.m3u8Url;c.kodk=data.kodk;c.kos=data.kos}render();toast(`${c?.title||"Kanal"} yenilendi`);return true}catch(e){toast(`Yenileme başarısız: ${e.message}`);return false}}
-  async function refreshAll(){if(state.refreshing)return;state.refreshing=true;const btn=$("refresh-all");btn.disabled=true;let done=0;for(const c of state.channels){btn.textContent=`Yenileniyor ${++done}/${state.channels.length}`;await refreshOne(c.path)}btn.disabled=false;btn.textContent="Tüm bağlantıları yenile";state.refreshing=false;toast("Tüm kanallar yenilendi")}
+  async function refreshAll(){if(state.refreshing)return;if(!state.apiHealthy){toast("Yenileme için Render sunucusu gerekli. GitHub Pages üzerinde API yok.");return}state.refreshing=true;const btn=$("refresh-all");btn.disabled=true;let done=0;for(const c of state.channels){btn.textContent=`Yenileniyor ${++done}/${state.channels.length}`;await refreshOne(c.path)}btn.disabled=false;btn.textContent="Tüm bağlantıları yenile";state.refreshing=false;toast("Tüm kanallar yenilendi")}
 
   function openPin(){state.pin="";state.pinBusy=false;$("pin-overlay").classList.remove("hidden");renderPin()}
   function closePin(){$("pin-overlay").classList.add("hidden");state.pending=null;state.pin=""}
@@ -238,7 +238,7 @@
   $("age-no").onclick=()=>$("age-blocked").classList.remove("hidden");
   document.addEventListener("keydown",e=>{if($("pin-overlay").classList.contains("hidden"))return;if(/^\d$/.test(e.key))pinInput(e.key);if(e.key==="Backspace"){state.pin=state.pin.slice(0,-1);renderPin()}if(e.key==="Escape")closePin()});
 
-  async function init(){buildPad();if(location.protocol==="file:"){$("local-overlay").classList.remove("hidden");return}render();try{const session=await request("/api/session");state.unlocked=Boolean(session.unlocked)}catch{}await loadChannels();if(state.selected)setupPlayer()}
+  async function init(){buildPad();if(location.protocol==="file:"){$("local-overlay").classList.remove("hidden");return}render();try{const session=await request("/api/session");state.unlocked=Boolean(session.unlocked)}catch{}await loadChannels();if(state.selected&&location.protocol!=="file:")setupPlayer()}
   init();
 })();
 </script>
